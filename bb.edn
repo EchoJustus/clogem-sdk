@@ -1,0 +1,56 @@
+;; © 2026 EchoJustus (Email: EchoJustus.Studio@outlook.com)
+;; Licensed under the Apache License, Version 2.0; see the LICENSE file.
+;; SPDX-License-Identifier: Apache-2.0
+
+{:min-bb-version "1.13.225"
+ :paths ["src" "test" "resources"]
+ :tasks
+ {:requires ([babashka.fs :as fs]
+             [clojure.string :as str]
+             [clojure.test :as t])
+
+  test
+  {:doc "Run clojure.test over test/**/*_test.clj."
+   :task (let [files (if (fs/exists? "test") (fs/glob "test" "**_test.clj") [])
+               ns-of (fn [f] (-> (str (fs/relativize "test" f))
+                                 (str/replace (re-pattern "\\.clj$") "")
+                                 (str/replace "/" ".")
+                                 (str/replace "_" "-")
+                                 symbol))
+               nss (sort (map ns-of files))]
+           (if (empty? nss)
+             (println "test: no test namespaces found")
+             (do (apply require nss)
+                 (let [{:keys [fail error]} (apply t/run-tests nss)]
+                   (when (pos? (+ fail error)) (System/exit 1))))))}
+
+  lint
+  {:doc "Fitness checks: license headers (S00); ownership and isolation rules from S01."
+   :requires ([clogem.sdk.lint :as lint])
+   :task (when-not (lint/lint! {:root "." :license :apache-2.0})
+           (System/exit 1))}
+
+  manifest:check
+  {:doc "Validate a manifest.edn against the meta-schema (clogem.sdk.manifest, S01)."
+   :task (do (binding [*out* *err*]
+               (println "manifest:check: clogem.sdk.manifest is scheduled for S01"))
+             (System/exit 2))}
+
+  guard:public
+  {:doc "Leak guard: workspace denylist, home paths, tokens, private files; tree and history."
+   :requires ([clogem.sdk.guard :as guard])
+   :task (when-not (guard/guard! {:root "." :history? true})
+           (System/exit 1))}
+
+  hooks:install
+  {:doc "Install .git/hooks/pre-commit so guard:public runs before every commit."
+   :task (let [hook (fs/path ".git" "hooks" "pre-commit")]
+           (fs/create-dirs (fs/parent hook))
+           (spit (str hook)
+                 (str "#!/bin/sh\n"
+                      "# Installed by `bb hooks:install`: blocks commits that would leak\n"
+                      "# private names, home paths or tokens into this public repository.\n"
+                      "cd \"$(git rev-parse --show-toplevel)\" || exit 1\n"
+                      "exec bb guard:public\n"))
+           (fs/set-posix-file-permissions hook "rwxr-xr-x")
+           (println (str "hooks:install: wrote " hook)))}}}
