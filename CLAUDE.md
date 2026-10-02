@@ -11,7 +11,8 @@ The plugin contract for Clogem modules:
 - `clogem.sdk.manifest` — the `manifest.edn` meta-schema, a `clojure.edn` reader, humanized errors, `bb manifest:check`
 - `clogem.sdk.event` — the event envelope schema
 - `clogem.sdk.testkit` — a fake runtime for module tests (S04)
-- `clogem.sdk.lint` and `clogem.sdk.guard` — dev tooling shared by every Clogem repository (S00)
+- `clogem.sdk.lint` and `clogem.sdk.guard` — dev tooling shared by every Clogem repository (S00); the lint
+  holds only the public license headers, other repositories pass their own with `:header`
 - `examples/echo/` — a fictional module used by tests and docs
 - `docs/plugin-guide.md`, `docs/deps.md`, `docs/adr/`
 
@@ -22,7 +23,7 @@ bb test            # clojure.test over test/**/*_test.clj
 bb lint            # fitness checks; must be green before every commit
 bb manifest:check <path>   # exits 1 on any manifest error (S01)
 bb guard:public    # leak guard: denylist + home paths + tokens + private files, tree and history
-bb hooks:install   # installs guard:public as .git/hooks/pre-commit
+bb hooks:install   # pre-commit (guard:public --staged) + commit-msg (guard:message) hooks
 ```
 
 `bb guard:public` reads `../.clogem/public-denylist.txt` from the private workspace (or

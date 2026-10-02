@@ -11,7 +11,7 @@ bb test            # clojure.test over test/**/*_test.clj
 bb lint            # fitness checks (license headers now; more rules from S01)
 bb manifest:check  # validate a manifest.edn (arrives in S01)
 bb guard:public    # leak guard over the tree and git history
-bb hooks:install   # pre-commit hook that runs guard:public
+bb hooks:install   # pre-commit (guard:public --staged) and commit-msg (guard:message) hooks
 ```
 
 Requires Babashka 1.13.225 or newer. Consumers depend on this repository as a sibling checkout: `{:local/root "../clogem-sdk"}`.
