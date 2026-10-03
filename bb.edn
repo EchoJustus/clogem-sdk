@@ -3,7 +3,8 @@
 ;; SPDX-License-Identifier: Apache-2.0
 
 {:min-bb-version "1.13.225"
- :paths ["src" "test" "resources"]
+ :paths ["src" "test" "resources" "examples/echo/src" "examples/echo/resources"]
+ :deps {metosin/malli {:mvn/version "0.20.2"}}
  :tasks
  {:requires ([babashka.fs :as fs]
              [babashka.process :as p]
@@ -26,16 +27,20 @@
                    (when (pos? (+ fail error)) (System/exit 1))))))}
 
   lint
-  {:doc "Fitness checks: license headers (S00); ownership and isolation rules from S01."
+  {:doc "Fitness checks: license headers, namespace ownership, module isolation, no pods, no prints in module code, manifests, home paths."
    :requires ([clogem.sdk.lint :as lint])
-   :task (when-not (lint/lint! {:root "." :license :apache-2.0})
+   :task (when-not (lint/lint! {:root "." :license :apache-2.0
+                                :source-dirs ["src" "examples/echo/src"]
+                                :test-dirs ["test"]
+                                :namespaces ["clogem.api" "clogem.sdk" "clogem.module.echo"]
+                                :pod-namespaces []
+                                :no-print-prefixes ["clogem.module"]})
            (System/exit 1))}
 
   manifest:check
-  {:doc "Validate a manifest.edn against the meta-schema (clogem.sdk.manifest, S01)."
-   :task (do (binding [*out* *err*]
-               (println "manifest:check: clogem.sdk.manifest is scheduled for S01"))
-             (System/exit 2))}
+  {:doc "Validate manifest.edn files against the meta-schema and semantic rules: bb manifest:check <path> ... (exit 1 on any problem)."
+   :requires ([clogem.sdk.manifest :as manifest])
+   :task (apply manifest/-main *command-line-args*)}
 
   guard:public
   {:doc "Leak guard: workspace denylist, home paths, tokens, private files. Tree and history; --staged scans the index only (pre-commit)."

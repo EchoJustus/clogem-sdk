@@ -1,0 +1,32 @@
+;; © 2026 EchoJustus (Email: EchoJustus.Studio@outlook.com)
+;; Licensed under the Apache License, Version 2.0; see the LICENSE file.
+;; SPDX-License-Identifier: Apache-2.0
+
+;; The fictional `echo` module: the smallest complete manifest, used by the
+;; SDK's tests and docs and by the hub's registry tests.
+{:manifest/version 1
+ :module/id :echo
+ :module/version "0.1.0"
+ :module/license :apache-2.0
+ :module/description "Fictional example module that echoes a message back."
+ :module/entry clogem.module.echo.core/module
+ :module/requires {:clogem/api "1" :bins [] :env #{}}
+ :bus {:publishes {:echo/said [:map [:text :string]]}
+       :subscribes #{}}
+ :db {:migrations nil}
+ :mcp {:tools [{:name "echo_say"
+                :title "Echo"
+                :description "Echo a message back, optionally upper-cased. Use it to check that a module round-trips through the hub."
+                :handler clogem.module.echo.tools/say
+                :input [:map {:closed true}
+                        [:text [:string {:min 1 :max 1000}]]
+                        [:upcase {:optional true} :boolean]]
+                :output [:map [:text :string]]
+                :annotations {:readOnlyHint true :idempotentHint true}
+                :meta {}
+                :profiles #{:gui :llm-small :llm-large :admin}}]
+       :resources []
+       :resource-templates []
+       :prompts []}
+ :ui {:card {:title "Echo" :icon "chat" :quick-actions ["echo_say"]}
+      :routes []}}

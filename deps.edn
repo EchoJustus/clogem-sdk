@@ -4,5 +4,6 @@
 
 ;; Manifest for consumers that depend on this repository with
 ;; {:local/root "../clogem-sdk"}: tools.deps reads deps.edn, not bb.edn.
-;; Tasks and the development classpath live in bb.edn.
-{:paths ["src" "resources"]}
+;; Tasks and the development classpath live in bb.edn; keep :deps identical.
+{:paths ["src" "resources"]
+ :deps {metosin/malli {:mvn/version "0.20.2"}}}
