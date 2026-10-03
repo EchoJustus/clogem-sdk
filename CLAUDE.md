@@ -34,7 +34,7 @@ rules run. The denylist is never copied into this repository.
 
 ```text
 LICENSE  README.md  CLAUDE.md  bb.edn  deps.edn  .gitignore
-src/clogem/api.clj                 src/clogem/sdk/{manifest,event,testkit,lint,guard}.clj
+src/clogem/api.clj                 src/clogem/sdk/{manifest,event,lint,guard}.clj  (+ testkit.clj in S04)
 test/clogem/…                      examples/echo/
 docs/adr/  docs/plugin-guide.md  docs/deps.md
 ```
@@ -47,7 +47,8 @@ keep its `:paths` in sync with the library paths in `bb.edn`.
 
 - **Namespaces:** this repo defines only `clogem.api` and `clogem.sdk.*`.
 - **Direction of dependencies:** the hub and every module depend on this repo. This repo never
-  depends on the hub or on any module, and never references them by name.
+  depends on the hub or on any module, and library code never references them by name
+  (lint test fixtures may use neutral made-up namespaces).
 - **Public-safe wording (PD-8):** no proprietary code, private repository or module names,
   prompts, secrets, tokens, absolute personal paths, or session logs. Examples use the fictional
   `echo` module. Say "proprietary modules may be loaded at runtime", nothing more specific.

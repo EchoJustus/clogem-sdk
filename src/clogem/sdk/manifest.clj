@@ -329,14 +329,17 @@
 ;; bb manifest:check
 
 (defn -main
-  "Validate every manifest path given. Prints one line per problem and
-   exits 1 on any problem, 2 when no path is given."
+  "Validate every manifest path given, then the registry-wide uniqueness
+   rules across them. Prints one line per problem and exits 1 on any
+   problem, 2 when no path is given."
   [& paths]
   (if (empty? paths)
     (do (println "usage: bb manifest:check <manifest.edn> ...")
         (System/exit 2))
-    (let [results (map check-file paths)]
+    (let [results (mapv check-file paths)
+          cross (when (every? :ok? results) (check-registry (map :manifest results)))]
       (doseq [{:keys [ok? problems path]} results]
         (doseq [p problems] (println (str path ": " p)))
         (println (str path ": " (if ok? "OK" (str (count problems) " problem(s)")))))
-      (System/exit (if (every? :ok? results) 0 1)))))
+      (doseq [p cross] (println (str "across manifests: " p)))
+      (System/exit (if (and (every? :ok? results) (empty? cross)) 0 1)))))

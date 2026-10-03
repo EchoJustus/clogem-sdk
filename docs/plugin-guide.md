@@ -41,13 +41,18 @@ Rules the checker enforces (`bb manifest:check <path>` exits 1 and prints each p
 - `:input` is a malli schema whose JSON Schema root is an object with no root-level
   `anyOf/oneOf/allOf`; property names match `[A-Za-z0-9_.-]{1,64}`. Hosts drop or flatten
   anything else.
-- Descriptions lead with what the tool does and when to use it, at most 1,000 characters.
-- Set `destructiveHint` and `idempotentHint` honestly. A tool that must be confirmed by a human
-  on every call sets `:meta {"anthropic/requiresUserInteraction" true}`.
+- Descriptions are 1 to 1,000 characters.
 - Resource URIs are `clogem://<id>/<kind>/<thing>`; templates use `{var}`.
 - `:ui/card :quick-actions` name tools of this module.
 - `:clogem/api` is the major version of `clogem.api` this SDK provides (`1`).
-- Across the registry, module ids, tool names and resource URIs are unique.
+- Across the manifests given to one `bb manifest:check` call, and across the hub's registry,
+  module ids, tool names and resource URIs are unique.
+
+Conventions the checker cannot verify (reviewed by hand):
+
+- Descriptions lead with what the tool does and when to use it.
+- Set `destructiveHint` and `idempotentHint` honestly. A tool that must be confirmed by a human
+  on every call sets `:meta {"anthropic/requiresUserInteraction" true}` (a Claude Code convention).
 
 ## 2. The entry point
 

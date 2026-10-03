@@ -45,8 +45,9 @@ needed.
 ## Consequences
 
 - One notation for authors; the hub and the SDK share one validator.
-- Any schema malli cannot express in JSON Schema (functions, custom predicates) is rejected by
-  `manifest:check` for tool inputs, by design: hosts could not use it.
+- A tool input whose root does not convert to a JSON Schema object is rejected by
+  `manifest:check`. Nested predicates malli cannot express (`[:fn …]`) convert to an empty
+  schema `{}`, which hosts accept as "any value"; authors should prefer expressible constraints.
 - Changing the meta-schema is a published-contract change (version bump and ADR, Ask-first).
 
 ## Revisit trigger
