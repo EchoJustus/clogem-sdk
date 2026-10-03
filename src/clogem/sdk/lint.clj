@@ -287,18 +287,23 @@
                   (if (seq pod-namespaces) (str/join ", " pod-namespaces) "no namespace of this repository"))}))
 
 (def print-symbols
-  #{'print 'println 'prn 'pr 'printf
-    'clojure.core/print 'clojure.core/println 'clojure.core/prn 'clojure.core/pr 'clojure.core/printf})
+  "Symbols that write to stdout, wherever they appear in a form (as a call,
+   passed to apply, bound in a let): the core printers, pprint and
+   System/out itself."
+  #{'print 'println 'prn 'pr 'printf 'print-str
+    'clojure.core/print 'clojure.core/println 'clojure.core/prn 'clojure.core/pr 'clojure.core/printf
+    'pprint 'clojure.pprint/pprint 'clojure.pprint/print-table 'print-table
+    'System/out})
 
 (defn- print-violations [{:keys [no-print-prefixes log-namespace]} files]
   (for [{:keys [rel ns forms test?]} files
         :when (and ns (not test?)
                    (under-any? no-print-prefixes (:name ns))
                    (not= (:name ns) log-namespace))
-        form (tree-seq coll? seq forms)
-        :when (and (seq? form) (contains? print-symbols (first form)))]
+        sym (distinct (filter #(and (symbol? %) (contains? print-symbols %))
+                              (tree-seq coll? seq (remove #(and (seq? %) (= 'ns (first %))) forms))))]
     {:file rel :rule :no-print
-     :reason (str (first form) " is allowed only in " (or log-namespace "the log namespace")
+     :reason (str sym " is allowed only in " (or log-namespace "the log namespace")
                   "; daemon and stdio paths log through it")}))
 
 (defn- manifest-violations [{:keys [root exclude-dirs manifests?] :or {manifests? true}}]
