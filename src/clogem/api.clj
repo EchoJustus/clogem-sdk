@@ -11,13 +11,61 @@
    for module tests. There is no global state: a module never reaches the
    hub, the bus, the database or a process except through this namespace.
 
-   STATUS: pre-1.0 (\"v0\" in the roadmap). Signatures may still change until
-   the S04 freeze, which publishes 1.0.0. The major version is already 1 so
-   that manifests can declare `:module/requires {:clogem/api \"1\"}`.")
+   STATUS: 1.0.0, frozen (ADR-0002 of this repository). The ten functions
+   below and the `Runtime` protocol are the published contract: a change
+   to a signature or to a documented request or reply shape needs a major
+   version bump and an ADR. Manifests declare `:module/requires
+   {:clogem/api \"1\"}`.
+
+   Contracts of the primitives the hub provides (S04):
+
+   run-process!  `argv` is a non-empty vector of strings; its first element
+     is a program name the host resolves (its configured `:bins` map, else
+     PATH; `.exe` on Windows), never a shell string. `opts`:
+       :timeout-ms       kill after this long (host default 600000)
+       :cwd              working directory
+       :env              extra environment variables (map of strings)
+       :stdin            a string written to the process, then closed
+       :on-progress      (fn [block]) called for every `-progress pipe:1`
+                         block ffmpeg writes to stdout, a map of keyword →
+                         string (`:frame`, `:out_time_us`, `:speed`,
+                         `:progress` \"continue\" | \"end\" …); when given,
+                         stdout is not accumulated into :out
+       :cancel           an atom; reset it to true to kill the process (a
+                         hard kill on Windows, so partial outputs must be
+                         temp files the caller removes)
+       :max-output-bytes cap on :out and :err (host default 16 MiB); the
+                         rest is dropped and :truncated? is true
+     Reply: {:exit int-or-nil :out string :err string :duration-ms int
+             :timed-out? bool :cancelled? bool :truncated? bool :argv [...]}
+     Throws ex-info {:type :process/binary-missing :binary name} and
+     {:type :process/invalid-argv}.
+
+   llm-chat!  `request`:
+       :messages    [{:role \"system\"|\"user\"|\"assistant\" :content string
+                      :images [base64-string …]}] (images optional)
+       :model       provider model name (host default)
+       :format      nil, \"json\", or a JSON Schema map (structured output)
+       :temperature number (default 0)
+       :timeout-ms  int (host default)
+       :options     provider-specific options map
+     Reply: {:content string :json value-or-nil (parsed when :format was
+             given and the content is valid JSON) :model string :provider
+             keyword :done-reason string-or-nil :duration-ms int :raw map}
+     Throws ex-info {:type :llm/unreachable | :llm/timeout |
+     :llm/provider-error | :llm/invalid-request}. Egress goes only to the
+     host's configured loopback or LAN endpoint (PD-9).
+
+   job!  `op` is :create, :progress, :complete, :fail or :cancel; `job`
+     the operation's map (S02). Reply {:ok true :job {…}} or
+     {:ok false :error {:type …}}.
+
+   config  `path` is a vector of keys under the module's own section of
+     the host configuration (`:modules <id> …`); nil when absent.")
 
 (def version
-  "Version of this API. Pre-release until the S04 freeze."
-  "1.0.0-alpha.1")
+  "Version of this API. Frozen in S04."
+  "1.0.0")
 
 (def major
   "Major version a manifest's `:clogem/api` requirement must equal."
@@ -42,9 +90,10 @@
     "Run a read-only query and return its rows (S02).")
   (-run-process! [rt ctx argv opts]
     "Run an external program given an argv vector, never a shell string,
-     with timeout and cancellation (S04).")
+     with timeout, progress and cancellation; see the namespace doc.")
   (-llm-chat! [rt ctx request]
-    "Synchronous chat completion through the hub's local LLM adapter (S04).")
+    "Synchronous chat completion through the host's local LLM adapter;
+     see the namespace doc.")
   (-job! [rt ctx op job]
     "Create, update, progress or cancel a job (S02).")
   (-config [rt ctx path]
@@ -90,14 +139,17 @@
   (-query (runtime ctx) ctx q))
 
 (defn run-process!
-  "Run `argv` (a vector of strings) as an external process with `opts`
-   (:timeout-ms, :cwd, :on-progress)."
+  "Run `argv` (a vector of strings, program name first) as an external
+   process with `opts` (:timeout-ms :cwd :env :stdin :on-progress :cancel
+   :max-output-bytes); the reply map is documented in the namespace doc."
   ([ctx argv] (run-process! ctx argv {}))
   ([ctx argv opts] (-run-process! (runtime ctx) ctx argv opts)))
 
 (defn llm-chat!
-  "Chat completion through the hub's LLM adapter; `request` holds
-   :messages, optional :format (JSON Schema), :images, :timeout-ms."
+  "Chat completion through the host's LLM adapter; `request` holds
+   :messages (with optional per-message :images), :model, :format,
+   :temperature, :timeout-ms, :options; the reply map is documented in the
+   namespace doc."
   [ctx request]
   (-llm-chat! (runtime ctx) ctx request))
 

@@ -2,7 +2,7 @@
 
 Plugin contract for Clogem modules: the `clogem.api` facade, `manifest.edn` schema, event formats, and a test kit for building modules without a running hub.
 
-Status: S01. The contract is implemented: `clogem.api` (1.0.0-alpha.1, frozen as 1.0.0 in S04), `clogem.sdk.manifest` (meta-schema, semantic rules, `bb manifest:check`) and `clogem.sdk.event`; `clogem.sdk.testkit` follows in S04. This repository also hosts the development tooling shared by every Clogem repository: `clogem.sdk.lint` (fitness checks) and `clogem.sdk.guard` (public-repository leak guard).
+Status: S04. The contract is frozen: `clogem.api` 1.0.0 (ten ctx-first functions over the `Runtime` protocol, with the process and LLM request and reply shapes documented in the namespace), `clogem.sdk.manifest` (meta-schema, semantic rules, `bb manifest:check`), `clogem.sdk.event` and `clogem.sdk.testkit` (a fake runtime for module tests). This repository also hosts the development tooling shared by every Clogem repository: `clogem.sdk.lint` (fitness checks) and `clogem.sdk.guard` (public-repository leak guard).
 
 ## Commands
 
