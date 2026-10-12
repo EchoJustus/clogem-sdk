@@ -54,6 +54,17 @@
     :event/trace (or trace (new-traceparent))
     :event/payload payload}))
 
+(def resource-updated
+  "Event type a module publishes when the content behind one of its MCP
+   resources changed, so the hub can tell subscribed clients
+   (`notifications/resources/updated`). Declare it in `:bus/publishes` with
+   `ResourceUpdated` as the payload schema."
+  :resource/updated)
+
+(def ResourceUpdated
+  "Payload of a `:resource/updated` event: the URI that changed."
+  [:map {:closed true} [:uri :string]])
+
 (defn valid?
   "True when `e` is a well-formed envelope."
   [e]

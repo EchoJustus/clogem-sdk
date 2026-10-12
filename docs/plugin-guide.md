@@ -18,7 +18,9 @@ and is the single source of truth for everything the hub knows about the module:
  :module/description "Fictional example module that echoes a message back."
  :module/entry clogem.module.echo.core/module      ; {:start (fn [ctx] state) :stop (fn [state]) :health (fn [state])}
  :module/requires {:clogem/api "1" :bins [] :env #{}}
- :bus {:publishes {:echo/said [:map [:text :string]]} :subscribes #{}}
+ :bus {:publishes {:echo/said [:map [:text :string]]
+                   :resource/updated [:map {:closed true} [:uri :string]]}   ; see §3
+       :subscribes #{}}
  :db {:migrations nil}
  :mcp {:tools [{:name "echo_say"
                 :title "Echo"
@@ -29,7 +31,13 @@ and is the single source of truth for everything the hub knows about the module:
                 :annotations {:readOnlyHint true :idempotentHint true}
                 :meta {}
                 :profiles #{:gui :llm-small :llm-large :admin}}]
-       :resources [] :resource-templates [] :prompts []}
+       :resources [{:uri "clogem://echo/last/said" :name "last-said" :mime-type "text/plain"
+                    :handler clogem.module.echo.resources/last-said
+                    :profiles #{:gui :llm-small :llm-large :admin}}]
+       :resource-templates [{:uri-template "clogem://echo/history/{n}" :name "history" :mime-type "text/plain"
+                             :handler clogem.module.echo.resources/history
+                             :profiles #{:gui :llm-large :admin}}]
+       :prompts []}
  :ui {:card {:title "Echo" :icon "chat" :quick-actions ["echo_say"]} :routes []}}
 ```
 
@@ -91,6 +99,28 @@ Everything a module needs from its host goes through `clogem.api`, `ctx` first:
 supplies the real one and `clogem.sdk.testkit` (S04) a fake one for tests, so module tests never
 need a running hub. Throwing from a handler yields an MCP result with `isError: true`; it is
 never a protocol error.
+
+A resource handler takes the module `ctx` and `{:uri uri :params {var value}}` (template
+variables arrive as strings) and returns `{:text s}` or `{:blob base64}` with an optional
+`:mime-type`, or `nil` when nothing exists at that URI (the hub answers `-32602 Resource not
+found`). When the content behind a resource changes, publish `clogem.sdk.event/resource-updated`
+(`:resource/updated`, payload `{:uri uri}`; declare it in `:bus/publishes`): the hub turns it into
+`notifications/resources/updated` for clients that subscribed to that URI. Resources and templates
+carry `:profiles` like tools; a client sees and reads only what its profile exposes.
+
+```clojure
+(ns clogem.module.echo.resources)
+
+(defonce history-ref (atom []))
+
+(defn last-said [ctx request]
+  {:mime-type "text/plain" :text (or (peek @history-ref) "")})
+
+(defn history [ctx {:keys [params]}]
+  (let [n (parse-long (str (:n params)))]
+    (when (and n (< -1 n (count @history-ref)))
+      {:mime-type "text/plain" :text (nth @history-ref n)})))
+```
 
 ## 4. What a module may require
 

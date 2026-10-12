@@ -11,7 +11,9 @@
  :module/description "Fictional example module that echoes a message back."
  :module/entry clogem.module.echo.core/module
  :module/requires {:clogem/api "1" :bins [] :env #{}}
- :bus {:publishes {:echo/said [:map [:text :string]]}
+ :bus {:publishes {:echo/said [:map [:text :string]]
+                   ;; the hub turns this into notifications/resources/updated
+                   :resource/updated [:map {:closed true} [:uri :string]]}
        :subscribes #{}}
  :db {:migrations nil}
  :mcp {:tools [{:name "echo_say"
@@ -25,8 +27,20 @@
                 :annotations {:readOnlyHint true :idempotentHint true}
                 :meta {}
                 :profiles #{:gui :llm-small :llm-large :admin}}]
-       :resources []
-       :resource-templates []
+       :resources [{:uri "clogem://echo/last/said"
+                    :name "last-said"
+                    :title "Last echoed text"
+                    :description "The text of the most recent echo_say call, or an empty string."
+                    :mime-type "text/plain"
+                    :handler clogem.module.echo.resources/last-said
+                    :profiles #{:gui :llm-small :llm-large :admin}}]
+       :resource-templates [{:uri-template "clogem://echo/history/{n}"
+                             :name "history"
+                             :title "Echo history"
+                             :description "The n-th echoed text (0 is the oldest)."
+                             :mime-type "text/plain"
+                             :handler clogem.module.echo.resources/history
+                             :profiles #{:gui :llm-large :admin}}]
        :prompts []}
  :ui {:card {:title "Echo" :icon "chat" :quick-actions ["echo_say"]}
       :routes []}}

@@ -28,3 +28,10 @@
     (is (some? (event/explain (assoc e :event/payload [1 2]))) "payload must be a map")
     (is (some? (event/explain (assoc e :extra 1))) "no extra keys")
     (is (some? (event/explain (dissoc e :event/source))) "source is required")))
+
+(deftest resource-updated-is-a-published-event-type
+  (is (= :resource/updated event/resource-updated))
+  (is (event/valid? (event/event :echo event/resource-updated {:uri "clogem://echo/last/said"})))
+  (is (malli.core/validate event/ResourceUpdated {:uri "clogem://echo/last/said"}))
+  (is (not (malli.core/validate event/ResourceUpdated {:uri "x" :extra 1})) "closed payload")
+  (is (not (malli.core/validate event/ResourceUpdated {}))))

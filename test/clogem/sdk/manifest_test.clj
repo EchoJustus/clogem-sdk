@@ -90,9 +90,13 @@
                   (assoc :module/id :other :module/entry 'clogem.module.other.core/module)
                   (assoc-in [:mcp :tools 0 :handler] 'clogem.module.other.tools/say)
                   (assoc-in [:mcp :tools 0 :name] "other_say")
+                  (assoc-in [:mcp :resources] [])
+                  (assoc-in [:mcp :resource-templates] [])
                   (assoc-in [:ui :card :quick-actions] ["other_say"]))]
     (is (empty? (manifest/check-registry [echo other])))
-    (is (= ["duplicate module id :echo" "duplicate tool name across modules: echo_say"]
+    (is (= ["duplicate module id :echo" "duplicate tool name across modules: echo_say"
+            "duplicate resource URI across modules: clogem://echo/history/{n}"
+            "duplicate resource URI across modules: clogem://echo/last/said"]
            (manifest/check-registry [echo echo])))
     (is (some #(str/includes? % "duplicate tool name across modules")
               (manifest/check-registry [echo (assoc-in other [:mcp :tools 0 :name] "echo_say")])))))
