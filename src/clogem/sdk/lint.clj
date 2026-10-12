@@ -346,7 +346,7 @@
             :let [rel (fs/relativize root f)]
             :when (not (excluded? exclude rel))
             p (:problems (manifest/check-file f))]
-        {:file (str rel) :rule :manifest :reason p}))))
+        {:file (rel-str rel) :rule :manifest :reason p}))))
 
 (defn- home-path-violations [source-files]
   (let [rules (filterv #(= :home-path (:id %)) guard/builtin-rules)]
