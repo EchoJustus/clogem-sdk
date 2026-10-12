@@ -117,6 +117,12 @@
 (defn- excluded? [exclude-dirs rel-path]
   (some exclude-dirs (map str (fs/components rel-path))))
 
+(defn- rel-str
+  "A relative path as a string with forward slashes on every platform, so
+   reports and tests read the same on Windows."
+  [rel]
+  (str/replace (str rel) "\\" "/"))
+
 (defn- require-directory! [root]
   (when-not (fs/directory? root)
     (throw (ex-info (str "lint root is not a directory: " root) {:root (str root)}))))
@@ -135,7 +141,7 @@
          (remove (fn [[_ rel]] (excluded? exclude-dirs rel)))
          (filter (fn [[f _]] (let [ext (extension f)]
                                (or (nil? ext) (contains? comment-marker ext)))))
-         (map (fn [[f rel]] [f (str rel)]))
+         (map (fn [[f rel]] [f (rel-str rel)]))
          (sort-by second))))
 
 (defn resolve-header
@@ -207,7 +213,7 @@
           :when (and (fs/regular-file? f) (contains? code-extensions (extension f)))
           :let [rel (fs/relativize root f)]
           :when (not (excluded? exclude rel))]
-      {:abs f :rel (str rel) :test? test?})))
+      {:abs f :rel (rel-str rel) :test? test?})))
 
 (defn- parse-files
   "Attach :forms and :ns to each file, or :unreadable with the reader error."

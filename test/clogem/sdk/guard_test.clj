@@ -123,7 +123,8 @@
           (is (every? #(re-find #"^(history@[0-9a-f]{7}:\d+|docs/.*|refs:\d+)$" (:where %)) findings)
               (pr-str (map :where findings))))
         (is (seq (guard/message-findings rules "sync with secret-name"))))
-      (finally (fs/delete-tree dir)))))
+      ;; git objects are read-only files: Windows needs :force to remove them
+      (finally (fs/delete-tree dir {:force true})))))
 
 (deftest this-repository-is-clean-under-the-builtin-rules
   ;; The workspace denylist is private and may be absent in CI, so this test
