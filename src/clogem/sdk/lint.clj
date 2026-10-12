@@ -20,13 +20,18 @@
                         namespaces outside the log namespace
    - :manifest          every manifest.edn passes clogem.sdk.manifest/check
    - :home-path         no absolute home paths in source files
+   - :restricted-call   configured symbols or string literals (platform-specific
+                        calls such as POSIX permissions or shell tools) appear
+                        only in the configured namespaces; test code is exempt
 
    Options (all optional except :root and :license or :header):
    :root, :license (:epl-2.0 | :apache-2.0) or :header [lines], :exclude-dirs,
    :source-dirs (default [\"src\"]), :test-dirs (default [\"test\"]),
    :namespaces (allowed prefixes; nil skips the rule), :module-allowed-requires,
    :pod-namespaces (default none), :log-namespace, :no-print-prefixes,
-   :manifests? (default true)."
+   :manifests? (default true), :restricted-calls (default none:
+   [{:pattern \"regex\" :namespaces [\"a.b\"] :reason \"…\"} ...], the pattern
+   matched whole against every symbol name and string literal of a form)."
   (:require [babashka.fs :as fs]
             [clojure.string :as str]
             [edamame.core :as edamame]
@@ -306,6 +311,27 @@
      :reason (str sym " is allowed only in " (or log-namespace "the log namespace")
                   "; daemon and stdio paths log through it")}))
 
+(defn- literal-tokens
+  "Every symbol name and string literal in `forms`, the ns form excluded."
+  [forms]
+  (->> (remove #(and (seq? %) (= 'ns (first %))) forms)
+       (tree-seq coll? seq)
+       (filter #(or (symbol? %) (string? %)))
+       (map str)
+       distinct))
+
+(defn- restricted-call-violations [{:keys [restricted-calls]} files]
+  (for [{:keys [rel ns forms test?]} files
+        :when (and ns (not test?))
+        {:keys [pattern namespaces reason]} restricted-calls
+        :when (not (under-any? namespaces (:name ns)))
+        :let [re (re-pattern pattern)
+              hits (filter #(re-matches re %) (literal-tokens forms))]
+        :when (seq hits)]
+    {:file rel :rule :restricted-call
+     :reason (str (str/join ", " hits) " allowed only in " (str/join ", " namespaces)
+                  (when reason (str ": " reason)))}))
+
 (defn- manifest-violations [{:keys [root exclude-dirs manifests?] :or {manifests? true}}]
   (when manifests?
     (let [root (fs/canonicalize root)
@@ -346,6 +372,7 @@
                      (into (isolation-violations opts readable))
                      (into (pod-violations opts readable))
                      (into (print-violations opts readable))
+                     (into (restricted-call-violations opts readable))
                      (into (manifest-violations opts))
                      (into (home-path-violations srcs)))}))
 

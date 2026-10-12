@@ -38,7 +38,10 @@
               :namespaces ["clogem.hub" "clogem.module.system"]
               :pod-namespaces ["clogem.hub.db"]
               :log-namespace "clogem.hub.log"
-              :no-print-prefixes ["clogem.hub" "clogem.module"]}]
+              :no-print-prefixes ["clogem.hub" "clogem.module"]
+              :restricted-calls [{:pattern "(babashka\\.fs/|fs/)?(set-)?posix-file-permissions|findmnt|powershell(\\.exe)?"
+                                  :namespaces ["clogem.hub.platform"]
+                                  :reason "platform calls live behind clogem.hub.platform"}]}]
     (try
       (write! dir "src/clogem/hub/log.clj" (headed "(ns clogem.hub.log) (defn log! [m] (binding [*out* *err*] (prn m)))"))
       (write! dir "src/clogem/hub/ok.clj" (headed "(ns clogem.hub.ok (:require [clogem.hub.log :as log])) (defn f [] (log/log! {}))"))
@@ -58,6 +61,10 @@
       (write! dir "src/clogem/hub/paths.clj" (headed (str "(ns clogem.hub.paths) (def p \"/home/" "alice/x\")")))
       (write! dir "resources/clogem/module/system/manifest.edn" (headed "{:manifest/version 1 :module/id :system}"))
       (write! dir "src/clogem/hub/unheaded.clj" "(ns clogem.hub.unheaded)")
+      (write! dir "src/clogem/hub/platform.clj" (headed "(ns clogem.hub.platform (:require [babashka.fs :as fs] [babashka.process :as p])) (defn secure! [p] (fs/set-posix-file-permissions p \"rw-------\")) (defn fstype [p] (p/shell \"findmnt\" \"-T\" p))"))
+      (write! dir "src/clogem/hub/posixy.clj" (headed "(ns clogem.hub.posixy (:require [babashka.fs :as fs])) (defn f [p] (fs/posix-file-permissions p)) (def doc \"findmnt is mentioned here only in prose\")"))
+      (write! dir "src/clogem/hub/shelly.clj" (headed "(ns clogem.hub.shelly (:require [babashka.process :as p])) (defn f [] (p/shell \"powershell\" \"-Command\" \"x\"))"))
+      (write! dir "test/clogem/hub/posixy_test.clj" (headed "(ns clogem.hub.posixy-test (:require [babashka.fs :as fs])) (fs/set-posix-file-permissions \"x\" \"rw-------\")"))
       (let [{:keys [violations]} (lint/check opts)
             by-file (fn [f] (rules-for violations f))]
         (is (= #{} (by-file "src/clogem/hub/log.clj")) "the log namespace may print")
