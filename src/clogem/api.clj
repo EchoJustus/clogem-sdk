@@ -56,9 +56,16 @@
      :llm/provider-error | :llm/invalid-request}. Egress goes only to the
      host's configured loopback or LAN endpoint (PD-9).
 
-   job!  `op` is :create, :progress, :complete, :fail or :cancel; `job`
-     the operation's map (S02). Reply {:ok true :job {…}} or
-     {:ok false :error {:type …}}.
+   job!  `op` is :create, :progress, :complete, :fail, :cancel or :get;
+     `job` the operation's map: :create {:kind string :input any [:id
+     string]}, :progress {:id :progress 0..1 [:message]}, :complete {:id
+     :result}, :fail {:id :error}, :cancel {:id}, :get {:id}.
+     Reply {:ok true :result job} where job is {:id string :module keyword
+     :kind string :status :queued|:running|:done|:failed|:cancelled
+     :progress double :message :input :result :error :cancel-requested?
+     bool :created-at ms :updated-at ms :finished-at ms-or-nil}, or
+     {:ok false :error {:type :invalid-job | :not-found | :not-owner |
+     :job-finished | :unknown-op …}}. A module sees only its own jobs.
 
    config  `path` is a vector of keys under the module's own section of
      the host configuration (`:modules <id> …`); nil when absent.")
