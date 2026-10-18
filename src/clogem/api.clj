@@ -161,7 +161,9 @@
   (-llm-chat! (runtime ctx) ctx request))
 
 (defn job!
-  "Job operations: `op` is :create, :progress, :complete, :fail or :cancel."
+  "Job operations: `op` is :create, :progress, :complete, :fail, :cancel or
+   :get; `job` the operation's map. The reply is documented in the
+   namespace doc ({:ok true :result job} or {:ok false :error {…}})."
   [ctx op job]
   (-job! (runtime ctx) ctx op job))
 

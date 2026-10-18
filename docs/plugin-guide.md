@@ -96,7 +96,7 @@ the structured result, which the hub validates against `:output` when declared:
 Everything a module needs from its host goes through `clogem.api`, `ctx` first:
 `publish!`, `subscribe!`, `request!`, `submit-tx!`, `query`, `run-process!`, `llm-chat!`,
 `job!`, `config`, `log`. The runtime behind them lives in `(:clogem/runtime ctx)`; the hub
-supplies the real one and `clogem.sdk.testkit` (S04) a fake one for tests, so module tests never
+supplies the real one and `clogem.sdk.testkit` a fake one for tests (§5), so module tests never
 need a running hub. Throwing from a handler yields an MCP result with `isError: true`; it is
 never a protocol error.
 
@@ -132,9 +132,83 @@ database, the LLM and the network are reached through the API so the hub can enf
 local-first egress and media safety. Module code does not print; it logs through `api/log`.
 `bb lint` checks all of this (`clogem.sdk.lint`).
 
-## 5. Checklist
+## 5. Testing a module with the test kit
+
+`clogem.sdk.testkit` is a fake `clogem.api/Runtime`: no hub, no bus, no database, no process,
+no model. A test builds a runtime from options, wraps it in a ctx and calls the module's handlers
+directly; everything the module asked of its host is recorded and can be asserted. Module tests
+therefore never need a running hub, ffmpeg or a model, and pass on CI runners without them.
+
+```clojure
+(ns clogem.module.echo.tools-test
+  (:require [clojure.test :refer [deftest is]]
+            [clogem.sdk.testkit :as tk]
+            [clogem.module.echo.tools :as tools]))
+
+(deftest say-echoes-and-publishes
+  (let [rt (tk/runtime)
+        ctx (tk/ctx rt :echo)]                        ; (tk/ctx rt :echo manifest) adds :module/manifest
+    (is (= {:text "HI"} (tools/say ctx {:text "hi" :upcase true})))
+    (is (= [[:echo/said {:text "HI"}] [:resource/updated {:uri "clogem://echo/last/said"}]]
+           (mapv (juxt :event/type :event/payload) (tk/published rt))))))
+```
+
+Behaviour comes from the options of `tk/runtime` (all optional):
+
+| Option | Answers | Default |
+|---|---|---|
+| `:replies` | `request!`: command keyword → reply map or `(fn [command] reply)`; or one fn for every command | `{:ok false :error {:type :unknown-command}}` |
+| `:tx-reply` | `submit-tx!`: a reply map or `(fn [tx] reply)` | `{:ok true}` |
+| `:queries` | `query`: a map from the query value to rows, or `(fn [q] rows)` | `[]` |
+| `:process` | `run-process!`: `(fn [argv opts] reply)`, merged over the contract's default reply, so a fake answers only the keys it cares about | `{:exit 0 :out "" :err "" :duration-ms 0 :timed-out? false :cancelled? false :truncated? false :argv argv}` |
+| `:llm` | `llm-chat!`: `(fn [request] reply)`, merged over the default | `{:content "" :json nil :model "fake" :provider :fake :done-reason "stop" :duration-ms 0 :raw {}}` |
+| `:config` | `config`: the module's own configuration map, walked with the path | nothing (`nil` for every path) |
+| `:jobs` | `job!`: seed jobs (maps with a string `:id`, usually a `:module`; the other keys default to a queued job); jobs then live in memory with the host's lifecycle, queued → running → done / failed / cancelled, and `:get` reads. `:create` takes the op map's `:id` or allocates `"1"`, `"2"`, `"3"` …; replies are `{:ok true :result job}` with the job map `clogem.api` documents, or `{:ok false :error {:type …}}` | none |
+
+The recorders return vectors in call order: `(tk/published rt)` (envelopes built with
+`clogem.sdk.event/event`, the module as source), `(tk/subscriptions rt)`, `(tk/requests rt)`,
+`(tk/txs rt)`, `(tk/queries rt)`, `(tk/processes rt)` (`{:argv :opts}`), `(tk/chats rt)`,
+`(tk/jobs rt)` (the current job maps), `(tk/job-ops rt)` and `(tk/logged rt)` (`{:level :event}`;
+`api/log` prints nothing).
+
+A module that subscribes is driven with `(tk/deliver! rt :media/registered {:id "m-1"})`: every
+handler it registered through `subscribe!` for that type runs synchronously, in subscription order,
+with a proper envelope (source `:test`, or the keyword given as a fourth argument). `publish!` only
+records; it never calls the kit's own subscribers.
+
+Faking a process and a model:
+
+```clojure
+(tk/runtime {:process (fn [argv _opts]
+                        (if (= "ffprobe" (first argv))
+                          {:out (slurp "test/fixtures/probe.json")}
+                          {:exit 1 :err "unexpected program"}))
+             :llm (fn [_request]
+                    {:content "{\"title\":\"x\"}" :json {:title "x"}})})
+```
+
+The fake never parses `:content`: a test that wants `:json` supplies it, which is also how a test
+feeds a module the malformed model output it must survive. The kit refuses what the host refuses:
+an argv that is not a non-empty vector of strings (`:process/invalid-argv`), a request without
+valid messages or with a `:format`, `:temperature` or `:options` the host would refuse
+(`:llm/invalid-request`), an event type that is not a qualified keyword. It does not
+check that a published event is declared in the manifest or matches its schema; the hub enforces
+that at runtime, so assert it in the test when it matters:
+
+```clojure
+(let [declared (get-in manifest [:bus :publishes])]
+  (doseq [{:event/keys [type payload]} (tk/published rt)]
+    (is (contains? declared type))
+    (is (malli.core/validate (get declared type) payload))))
+```
+
+`clogem.sdk.testkit` is allowed in test namespaces only (`bb lint` refuses it in module code).
+
+## 6. Checklist
 
 1. `bb manifest:check resources/clogem/module/<id>/manifest.edn` is clean.
-2. `bb lint` and `bb test` are green in the module directory.
-3. The manifest is listed in `~/.config/clogem/modules.edn` (S04) and `system_list_modules`
+2. `bb lint` and `bb test` are green in the module directory; the tests run against
+   `clogem.sdk.testkit`, never a running hub (§5).
+3. The module's directory is listed in `modules.edn` in the hub's config directory
+   (`%LOCALAPPDATA%\clogem\` on Windows, `~/.config/clogem/` on POSIX; S04) and `system_list_modules`
    shows the module as `ready`.

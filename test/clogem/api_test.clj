@@ -17,7 +17,7 @@
     (-query [_ _ q] (swap! calls conj [:query q]) [])
     (-run-process! [_ _ argv opts] (swap! calls conj [:run-process! argv opts]) {:exit 0})
     (-llm-chat! [_ _ r] (swap! calls conj [:llm-chat! r]) {:content ""})
-    (-job! [_ _ op j] (swap! calls conj [:job! op j]) {:job/id 1})
+    (-job! [_ _ op j] (swap! calls conj [:job! op j]) {:ok true :result {:id "1"}})
     (-config [_ _ path] (swap! calls conj [:config path]) :value)
     (-log [_ _ level e] (swap! calls conj [:log level e]) nil)))
 
