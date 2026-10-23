@@ -61,6 +61,8 @@
   (is (seq (guard/scan-name [] "data/clogem.db")))
   (is (seq (guard/scan-name [] "data/clogem.db-wal")))
   (is (seq (guard/scan-name [] ".env")))
+  (is (seq (guard/scan-name [] "packaging/dev.pfx")))
+  (is (seq (guard/scan-name [] "certs/signing.p12")))
   (is (empty? (guard/scan-name [] "docs/adr/0001-example.md")))
   (is (empty? (guard/scan-name [] "src/clogem/sdk/lint.clj"))))
 

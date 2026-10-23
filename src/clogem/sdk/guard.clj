@@ -63,7 +63,9 @@
    {:id :private-file :why "database file"
     :re #"\.db(-wal|-shm|-journal)?$"}
    {:id :private-file :why "client token store"
-    :re #"(^|/)clients\.edn$"}])
+    :re #"(^|/)clients\.edn$"}
+   {:id :private-file :why "code-signing key or certificate bundle with its private key"
+    :re #"\.(pfx|p12)$"}])
 
 (defn parse-denylist
   "One entry per line; `#` starts a comment. An entry is a case-insensitive
